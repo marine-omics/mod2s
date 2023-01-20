@@ -32,6 +32,12 @@ RUN ldconfig /usr/local/lib
 
 RUN python3 -m pip install d2ssect
 
+RUN wget 'https://github.com/lh3/seqtk/archive/refs/tags/v1.3.tar.gz' && \
+  tar -zxvf v1.3.tar.gz && \
+  cd seqtk-1.3/ && \
+  make && mv seqtk /usr/local/bin && \
+  rm -rf seqtk-1.3/
+
 
 # Cleanup apt package lists to save space
 RUN rm -rf /var/lib/apt/lists/*

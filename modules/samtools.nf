@@ -1,4 +1,5 @@
 process concat_reads {
+    publishDir "$params.outdir/mapped_reads"    
 
     input:
     tuple val(meta), path(readsin)
@@ -13,6 +14,7 @@ process concat_reads {
 }
 
 process get_mapped_reads {
+    publishDir "$params.outdir/mapped_reads"
 
     input:
     tuple val(meta), path(readsin)
@@ -24,13 +26,13 @@ process get_mapped_reads {
 
     script:
     """
-    bwa mem -M -t $task.cpus -p $target $readsin | \
-    samtools view -F 4 -b |\
-    samtools fastq > ${meta.sample}.fastq
+    bwa mem -M -t $task.cpus $target $readsin | \
+    samtools fastq -F 4 > ${meta.sample}.fastq
     """
 }
 
 process get_mapped_reads_notbg {
+    publishDir "$params.outdir/mapped_reads"
 
     input:
     tuple val(meta), path(readsin)
@@ -44,9 +46,9 @@ process get_mapped_reads_notbg {
 
     script:
     """
-    bwa mem -M -t $task.cpus -p $target $readsin | \
+    bwa mem -M -t $task.cpus $target $readsin | \
     samtools fastq -F 4 | \
-    bwa mem -M -t $task.cpus -p $background - | \
+    bwa mem -M -t $task.cpus $background - | \
     samtools fastq -f 4 > ${meta.sample}.fastq
     """
 

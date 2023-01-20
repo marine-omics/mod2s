@@ -4,10 +4,18 @@ include { bwa_index as index_target; bwa_index as index_background } from './mod
 include { get_mapped_reads; concat_reads; get_mapped_reads_notbg } from './modules/samtools.nf'
 include { d2s_pair; gather_d2s_matrix } from './modules/d2ssect.nf'
 include { jellyfish_count } from './modules/jellyfish.nf'
+include { count_reads } from './modules/shell.nf'
+include { subsample_reads } from './modules/seqtk.nf'
 
 params.target_ref=null
 params.background_ref=null
 params.outdir=null
+
+// After discarding samples with <n_reads, a random subsample of n_reads will be used
+// If n_reads is not set the worflow will stop after calculating read depths 
+// to allow the user to choose a threshold 
+//
+params.n_reads=null 
 
 if(!params.outdir){
   log.error "No outdir provided. Provide one with --outdir myoutdir"
@@ -69,8 +77,43 @@ workflow {
   } else {
     log.error "background_ref provided but not target_ref. When providing a single reference it must be labelled refa"
   }
-  
-  d2s(ch_reads)
+
+
+  if (!params.n_reads){
+
+    count_table_file = file("${params.outdir}/read_counts.txt")
+    count_table_file.text = ''
+
+    ch_reads.map {
+      count = file(it[1]).countFastq()
+      count_table_file << "${it[0].sample},${count}\n"
+      [it[0].sample,count]
+    }
+
+    log.error "n_reads not provided. Examine ${params.outdir}/read_counts.txt to choose an appropriate value and then rerun with -resume"
+
+  }
+
+  ch_counted_reads = ch_reads.map {
+    count = file(it[1]).countFastq()
+    it[0]['count'] = count
+    it
+  }
+
+  i=1
+  ch_filtered_samples = ch_counted_reads.filter {
+    it[0].count >= params.n_reads
+  }.map {
+    it[0].i = i
+    i=i+1
+    it
+  }
+
+  ch_filtered_samples.view()
+
+  ch_sampled_reads = subsample_reads(ch_filtered_samples,params.n_reads)
+
+  d2s(ch_sampled_reads)
 }
 
 
