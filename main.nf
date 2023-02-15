@@ -90,7 +90,7 @@ workflow {
       [it[0].sample,count]
     }
 
-    log.error "n_reads not provided. Examine ${params.outdir}/read_counts.txt to choose an appropriate value and then rerun with -resume"
+    log.error "n_reads not provided. Examine ${params.outdir}/read_counts.txt to choose an appropriate value and then rerun with --n_reads X -resume where X is your chosen read threshold"
 
   }
 
