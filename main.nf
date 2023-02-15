@@ -78,42 +78,45 @@ workflow {
     log.error "background_ref provided but not target_ref. When providing a single reference it must be labelled refa"
   }
 
-
   if (!params.n_reads){
+    log.error "n_reads not provided. \n When this run is complete use read counts in <outdir>/sample_counts.txt to choose an appropriate value and then rerun with --n_reads X -resume where X is your chosen read threshold"    
 
-    count_table_file = file("${params.outdir}/read_counts.txt")
-    count_table_file.text = ''
+    ch_counts = ch_reads.map {
+         count = file(it[1]).countFastq()
+         "${it[0].sample},${count}"
+     }
+     ch_counts.view()
 
-    ch_reads.map {
-      count = file(it[1]).countFastq()
-      count_table_file << "${it[0].sample},${count}\n"
-      [it[0].sample,count]
+    ch_counts.collectFile(name:'sample_counts.txt', newLine: true, storeDir: params.outdir)
+    .subscribe {
+        println "Entries are saved to file: $it"
     }
 
-    log.error "n_reads not provided. Examine ${params.outdir}/read_counts.txt to choose an appropriate value and then rerun with --n_reads X -resume where X is your chosen read threshold"
+  } else {
 
+    ch_counted_reads = ch_reads.map {
+      count = file(it[1]).countFastq()
+      it[0]['count'] = count
+      it
+    }
+
+    i=1
+    ch_filtered_samples = ch_counted_reads.filter {
+      it[0].count >= params.n_reads
+    }.map {
+      it[0].i = i
+      i=i+1
+      it
+    }
+
+    ch_filtered_samples.view()
+
+    ch_sampled_reads = subsample_reads(ch_filtered_samples,params.n_reads)
+
+    d2s(ch_sampled_reads)    
   }
 
-  ch_counted_reads = ch_reads.map {
-    count = file(it[1]).countFastq()
-    it[0]['count'] = count
-    it
-  }
 
-  i=1
-  ch_filtered_samples = ch_counted_reads.filter {
-    it[0].count >= params.n_reads
-  }.map {
-    it[0].i = i
-    i=i+1
-    it
-  }
-
-  ch_filtered_samples.view()
-
-  ch_sampled_reads = subsample_reads(ch_filtered_samples,params.n_reads)
-
-  d2s(ch_sampled_reads)
 }
 
 
